@@ -1,6 +1,5 @@
 <?php
 
-// Max 5 in quantity per order for sunglasses ie category 25
 add_filter( 'woocommerce_add_to_cart_validation', 'add_quantity_validation',10,3);
 function add_quantity_validation($passed,$product_id,$quantity) {
 	global $woocommerce;
@@ -9,29 +8,52 @@ function add_quantity_validation($passed,$product_id,$quantity) {
 	$productItems = sizeof($cart);
 	$totalQuantity;
 
-	define("categoryExcluded",25);
+	$categoriesExcluded = array(15,16);
 	define("totalQuantity",4);
 
+	// Check if product id is in relevant category
+	function isProductInRelevantCategory($prodId,$categoriesExcluded) {
+		$productIsInRelevantCategory = false;
 
-	foreach($cart as $cartItem) {
-		$catIds = array();
-		$prodCats = array();
-		$prodAddedCats = get_the_terms($product_id, 'product_cat');
+		$prodAddedCategories = array();
+		$prodAddedCats = get_the_terms($prodId, 'product_cat');
+		// Get array of category ids of added product
 		foreach($prodAddedCats as $prodAddedCat) {
 			$prodCat = $prodAddedCat->term_id;
-			array_push($prodCats, $prodCat);
-		}
-		$terms = get_the_terms ( $cartItem['product_id'], 'product_cat' );
-		foreach ( $terms as $term ) {
-			 $cat_id = $term->term_id;
-			 array_push($catIds, $cat_id);
-		}
-		if(in_array(categoryExcluded, $catIds) && in_array(categoryExcluded, $prodCats)) {
-			$totalQuantity += $cartItem['quantity'];
+			array_push($prodAddedCategories, $prodCat);
 		}
 
+		// Check if added product categories contains product id
+		foreach($categoriesExcluded as $excludedCat){
+			foreach($prodAddedCategories as $prodAddedCategory) {
+				if($prodAddedCategory === $excludedCat) {
+					$productIsInRelevantCategory = true;
+				}
+			}
+		}
+
+		return $productIsInRelevantCategory;
 	}
-	if($totalQuantity > 4) {
+
+	function checkQuantityOfCartItems($cart,$categoriesExcluded,$totalQuantity) {
+		foreach($cart as $cartItem) {
+			if(isProductInRelevantCategory($cartItem['product_id'],$categoriesExcluded)) {
+				$totalQuantity += $cartItem['quantity'];
+			};
+		}
+		return $totalQuantity;
+	}
+
+	if(isProductInRelevantCategory($product_id,$categoriesExcluded)) {
+		// Check quantity
+		$totalQuantity = checkQuantityOfCartItems($cart,$categoriesExcluded,$totalQuantity);
+	} else {
+		// Approve cart add
+	};
+
+
+	// If in relevant id, count number of products in relevant category
+	if($totalQuantity > totalQuantity) {
 		// Dont allow
 		wc_add_notice( __( 'Du kan maks bestille 5 produkter per ordre.', 'woocommerce' ), 'error' );
 		$passed = false;
@@ -39,4 +61,6 @@ function add_quantity_validation($passed,$product_id,$quantity) {
 		$passed = true;
 	}
 	return $passed;
+
+
 }
